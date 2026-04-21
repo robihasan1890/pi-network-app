@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PiConnect BD</title>
+  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+</head>
+<body style="font-family:Arial; text-align:center; padding:20px; background:#1a1a2e; color:white;">
+
+  <h1 style="color:#f0a500;">🔴 PiConnect BD</h1>
+  <p>A Pi Network App for Bangladeshi Users</p>
+
+  <button onclick="authenticate()" 
+    style="background:#f0a500; color:black; padding:15px 30px; 
+    font-size:18px; border:none; border-radius:10px; cursor:pointer;">
+    Login with Pi
+  </button>
+
+  <div id="user-info" style="margin-top:20px;"></div>
+
+  <script>
+    Pi.init({ version: "2.0", sandbox: true });
+
+    function authenticate() {
+      Pi.authenticate(["username", "payments"], onIncompletePaymentFound)
+        .then(function(auth) {
+          document.getElementById("user-info").innerHTML = 
+            "<h3>✅ স্বাগতম, @" + auth.user.username + "!</h3>" +
+            "<p>আপনি সফলভাবে লগইন করেছেন।</p>";
+        })
+        .catch(function(err) {
+          console.error(err);
+        });
+    }
+
+    function onIncompletePaymentFound(payment) {
+      console.log("Incomplete payment:", payment);
+    }
+  </script>
+
+</body>
+</html>
