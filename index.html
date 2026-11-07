@@ -1,4 +1,192 @@
-<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PiConnect BD</title>
+<script src="https://sdk.minepi.com/pi-sdk.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#0f1220;--card:#1a1e33;--line:#2a3050;--txt:#f2f3f8;--mut:#9aa1bd;--pri:#f5a623;--pur:#7b3fe4}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif;padding:14px;max-width:640px;margin:auto}
+h1{font-size:22px;color:var(--pri)}
+.sub{color:var(--mut);font-size:13px;margin-bottom:12px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+button{border:0;border-radius:10px;padding:11px 14px;font-weight:600;font-size:14px;cursor:pointer}
+.btn{background:var(--pri);color:#1a1200}
+.btn2{background:var(--pur);color:#fff}
+.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+input,select,textarea{width:100%;background:#12152a;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:11px;font-size:14px;margin-bottom:10px;font-family:inherit}
+textarea{min-height:80px;resize:vertical}
+label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.tag{display:inline-block;font-size:11px;padding:3px 8px;border-radius:20px;background:#2a2150;color:#c9b6ff;margin-right:6px}
+.price{color:var(--pri);font-weight:700;font-size:16px}
+.title{font-weight:700;margin:6px 0 4px;font-size:16px}
+.desc{color:var(--mut);font-size:13px;white-space:pre-wrap;margin-bottom:8px}
+.meta{font-size:12px;color:var(--mut);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hide{display:none}
+.empty{text-align:center;color:var(--mut);padding:30px 0}
+.msg{font-size:13px;color:#8be28b;margin-bottom:8px}
+.err{color:#ff8a8a}
+.chips{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:4px}
+.chip{white-space:nowrap;background:var(--card);border:1px solid var(--line);color:var(--txt);padding:7px 12px;border-radius:20px;font-size:13px}
+.chip.on{background:var(--pri);color:#1a1200;border-color:var(--pri)}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div><h1>PiConnect BD</h1><div class="sub">Pi দিয়ে কেনা-বেচা ও সেবা বিনিময়</div></div>
+  <button class="ghost" id="logout" style="display:none">লগআউট</button>
+</div>
+
+<!-- LOGIN -->
+<div id="loginView" class="card">
+  <p style="margin-bottom:10px">পোস্ট করতে ও যোগাযোগ করতে Pi দিয়ে লগইন করুন।</p>
+  <button class="btn" id="loginBtn">Login with Pi</button>
+  <div id="loginMsg" class="sub" style="margin-top:8px"></div>
+</div>
+
+<!-- APP -->
+<div id="appView" class="hide">
+  <div class="top">
+    <div class="msg" id="welcome"></div>
+    <button class="btn2" id="toggleForm">+ নতুন পোস্ট</button>
+  </div>
+
+  <form id="postForm" class="card hide">
+    <label>ধরন</label>
+    <select id="type">
+      <option value="বিক্রি">বিক্রি (পণ্য)</option>
+      <option value="সেবা">সেবা</option>
+      <option value="বিনিময়">বিনিময়</option>
+    </select>
+    <label>শিরোনাম</label>
+    <input id="title" maxlength="60" placeholder="যেমন: ব্যবহৃত মোবাইল / লোগো ডিজাইন" required>
+    <label>বিবরণ</label>
+    <textarea id="desc" maxlength="400" placeholder="সংক্ষেপে লিখুন..." required></textarea>
+    <div class="row">
+      <div><label>দাম (Pi)</label><input id="price" type="number" step="0.01" min="0" placeholder="0.5" required></div>
+      <div><label>এলাকা</label><input id="loc" maxlength="30" placeholder="রংপুর" required></div>
+    </div>
+    <button class="btn" type="submit" style="width:100%">পোস্ট করুন</button>
+    <div id="formMsg" class="sub" style="margin-top:8px"></div>
+  </form>
+
+  <div class="chips" id="chips"></div>
+  <div id="list"></div>
+</div>
+
+<script>
+/* ====== সেটিংস ======
+   Firebase দিলে সবার পোস্ট শেয়ার হবে।
+   না দিলে ডেমো মোডে শুধু এই ডিভাইসে সেভ হবে। */
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID"
+};
+const useFirebase = FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY";
+let db = null;
+if (useFirebase) { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.firestore(); }
+
+const $ = id => document.getElementById(id);
+let user = null, filter = "সব", items = [];
+const TYPES = ["সব","বিক্রি","সেবা","বিনিময়"];
+
+/* ====== Pi Login ====== */
+try { Pi.init({ version: "2.0", sandbox: true }); } catch (e) {}
+function onIncompletePaymentFound(p) {}
+
+async function login() {
+  $("loginMsg").textContent = "লগইন হচ্ছে...";
+  try {
+    const auth = await Pi.authenticate(["username", "payments"], onIncompletePaymentFound);
+    user = auth.user.username;
+    showApp();
+  } catch (e) {
+    $("loginMsg").innerHTML = '<span class="err">লগইন হয়নি। Pi Browser থেকে খুলুন।</span>';
+  }
+}
+$("loginBtn").onclick = login;
+$("logout").onclick = () => { user = null; location.reload(); };
+
+function showApp() {
+  $("loginView").classList.add("hide");
+  $("appView").classList.remove("hide");
+  $("logout").style.display = "inline-block";
+  $("welcome").textContent = "স্বাগতম, @" + user + "!";
+  renderChips(); load();
+}
+
+/* ====== ডাটা ====== */
+async function load() {
+  if (useFirebase) {
+    const snap = await db.collection("listings").orderBy("ts", "desc").limit(50).get();
+    items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } else {
+    try { items = JSON.parse(localStorage.getItem("pcbd_items") || "[]"); } catch (e) { items = []; }
+  }
+  render();
+}
+async function save(item) {
+  if (useFirebase) { await db.collection("listings").add(item); }
+  else { items.unshift({ id: String(item.ts), ...item }); localStorage.setItem("pcbd_items", JSON.stringify(items)); }
+}
+async function remove(id) {
+  if (!confirm("পোস্টটি মুছবেন?")) return;
+  if (useFirebase) await db.collection("listings").doc(id).delete();
+  else { items = items.filter(i => i.id !== id); localStorage.setItem("pcbd_items", JSON.stringify(items)); }
+  load();
+}
+
+/* ====== UI ====== */
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function renderChips() {
+  $("chips").innerHTML = TYPES.map(t => <button class="chip ${t === filter ? "on" : ""}" data-t="${t}">${t}</button>).join("");
+  document.querySelectorAll(".chip").forEach(b => b.onclick = () => { filter = b.dataset.t; renderChips(); render(); });
+}
+function render() {
+  const rows = items.filter(i => filter === "সব" || i.type === filter);
+  if (!rows.length) { $("list").innerHTML = '<div class="empty">এখনো কোনো পোস্ট নেই।<br>প্রথম পোস্টটি আপনিই করুন!</div>'; return; }
+  $("list").innerHTML = rows.map(i => `
+    <div class="card">
+      <span class="tag">${esc(i.type)}</span><span class="tag">${esc(i.loc)}</span>
+      <div class="title">${esc(i.title)}</div>
+      <div class="desc">${esc(i.desc)}</div>
+      <div class="meta">
+        <span class="price">${esc(i.price)} π</span>
+        <span>@${esc(i.seller)}</span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn2" onclick="contact('${esc(i.seller)}')">যোগাযোগ</button>
+        ${i.seller === user ? <button class="ghost" onclick="remove('${esc(i.id)}')">মুছুন</button> : ""}
+      </div>
+    </div>`).join("");
+}
+function contact(u) {
+  const link = "https://pi.chat/@" + u;
+  try { window.open(link, "_blank"); } catch (e) { alert("Pi username: @" + u); }
+}
+$("toggleForm").onclick = () => $("postForm").classList.toggle("hide");
+$("postForm").onsubmit = async e => {
+  e.preventDefault();
+  const item = {
+    type: $("type").value, title: $("title").value.trim(), desc: $("desc").value.trim(),
+    price: parseFloat($("price").value) || 0, loc: $("loc").value.trim(), seller: user, ts: Date.now()
+  };
+  try {
+    await save(item);
+    $("postForm").reset(); $("postForm").classList.add("hide");
+    load();
+  } catch (err) { $("formMsg").innerHTML = '<span class="err">পোস্ট হয়নি, আবার চেষ্টা করুন।</span>'; }
+};
+</script>
+</body>
+</html><!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
