@@ -1,76 +1,29 @@
-[6:02 pm, 08/11/2026] MD RABIUL ISLAM: <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="bn">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PiConnect BD</title>
 <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<style>
-:root{--bg:#0f1220;--card:#1a1e33;--line:#2a3050;--txt:#f2f3f8;--mut:#9aa1bd;--pri:#f5a623;--pur:#7b3fe4}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif;padding:14px;max-width:640px;margin:auto}
-h1{font-size:22px;color:var(--pri)}
-.sub{color:var(--mu…
-[6:12 pm, 08/11/2026] MD RABIUL ISLAM: <!DOCTYPE html>
-<html lang="bn">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PiConnect BD</title>
-<script src="https://sdk.minepi.com/pi-sdk.js"></script>
-<style>
-  :root{--bg:#14121c;--card:#1f1c2b;--line:#342f47;--text:#f1eefb;--mute:#a49fba;--accent:#f5a524;--ok:#4ade80;--err:#f87171}
-  *{box-sizing:border-box}
-  body{margin:0;font-family:"Noto Sans Bengali",system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
-  .wrap{max-width:560px;margin:0 auto;padding:16px}
-  h1{margin:0;font-size:24px;color:var(--accent)}
-  .sub{color:var(--mute);margin:4px 0 16px}
-  button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 16px;background:var(--accent);color:#1a1200;font-weight:600}
-  button.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
-  button:disabled{opacity:.5}
-  button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .bar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
-  .msg{padding:10px 12px;border-radius:10px;margin:8px 0;font-size:14px}
-  .msg.err{background:#3a1d22;color:var(--err)}
-  .msg.ok{background:#16301f;color:var(--ok)}
-  form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:16px;display:grid;gap:10px}
-  label{font-size:13px;color:var(--mute);display:grid;gap:4px}
-  input,select,textarea{font:inherit;width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:#12101a;color:var(--text)}
-  textarea{min-height:80px;resize:vertical}
-  .tabs{display:flex;gap:8px;margin-bottom:12px}
-  .tabs button{flex:1}
-  .post{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}
-  .post h3{margin:0 0 4px;font-size:17px}
-  .tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:#2c2740;color:var(--accent);margin-right:6px}
-  .meta{font-size:13px;color:var(--mute);margin-top:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
-  .price{color:var(--accent);font-weight:700}
-  .hidden{display:none}
-  .empty{text-align:center;color:var(--mute);padding:28px 0}
-</style>
 </head>
 <body>
 <div class="wrap">
   <h1>PiConnect BD</h1>
   <p class="sub">Pi দিয়ে কেনা-বেচা ও সেবা বিনিময়</p>
-
   <div id="status"></div>
 
-  <!-- লগইন -->
   <section id="loginBox">
     <p>পোস্ট করতে ও যোগাযোগ করতে Pi দিয়ে লগইন করুন।</p>
     <button id="loginBtn" type="button">Pi দিয়ে লগইন করুন</button>
   </section>
 
-  <!-- মূল অ্যাপ -->
-  <section id="appBox" class="hidden">
+  <section id="appBox">
     <div class="bar">
       <span>স্বাগতম, <strong id="uname"></strong></span>
       <button class="ghost" type="button" id="newBtn">+ নতুন পোস্ট</button>
     </div>
 
-    <form id="postForm" class="hidden">
+    <form id="postForm">
       <label>ধরন
         <select id="type">
           <option value="বিক্রি">বিক্রি (পণ্য)</option>
@@ -107,11 +60,55 @@ h1{font-size:22px;color:var(--pri)}
 (function () {
   "use strict";
 
-  var user = null;
-  var filter = "all";
-  var KEY = "piconnectbd_posts_v1";
+  // ---------- স্টাইল (JS দিয়ে, CSS ব্লক ছাড়া) ----------
+  var RULES = {
+    "*": "box-sizing:border-box",
+    "body": "margin:0;font-family:'Noto Sans Bengali',system-ui,sans-serif;background:#14121c;color:#f1eefb;line-height:1.5",
+    ".wrap": "max-width:560px;margin:0 auto;padding:16px",
+    "h1": "margin:0;font-size:24px;color:#f5a524",
+    ".sub": "color:#a49fba;margin:4px 0 16px",
+    "button": "font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 16px;background:#f5a524;color:#1a1200;font-weight:600",
+    "button.ghost": "background:transparent;color:#f1eefb;border:1px solid #342f47",
+    ".bar": "display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px",
+    ".msg": "padding:10px 12px;border-radius:10px;margin:8px 0;font-size:14px",
+    ".msg.err": "background:#3a1d22;color:#f87171",
+    ".msg.ok": "background:#16301f;color:#4ade80",
+    "form": "display:grid;gap:10px;background:#1f1c2b;border:1px solid #342f47;border-radius:14px;padding:14px;margin-bottom:16px",
+    "label": "display:grid;gap:4px;font-size:13px;color:#a49fba",
+    "input,select,textarea": "font:inherit;width:100%;padding:10px;border-radius:8px;border:1px solid #342f47;background:#12101a;color:#f1eefb",
+    "textarea": "min-height:80px;resize:vertical",
+    ".tabs": "display:flex;gap:8px;margin-bottom:12px",
+    ".tabs button": "flex:1",
+    ".post": "background:#1f1c2b;border:1px solid #342f47;border-radius:14px;padding:14px;margin-bottom:10px",
+    ".post h3": "margin:0 0 4px;font-size:17px",
+    ".tag": "display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:#2c2740;color:#f5a524;margin-bottom:6px",
+    ".meta": "font-size:13px;color:#a49fba;margin-top:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px",
+    ".price": "color:#f5a524;font-weight:700",
+    ".empty": "text-align:center;color:#a49fba;padding:28px 0"
+  };
+
+  function applyStyles(root) {
+    Object.keys(RULES).forEach(function (sel) {
+      var decls = RULES[sel].split(";");
+      var nodes = [];
+      try { nodes = (root === document ? document : root).querySelectorAll(sel); } catch (e) {}
+      nodes.forEach(function (el) {
+        decls.forEach(function (d) {
+          var i = d.indexOf(":");
+          if (i > 0) el.style.setProperty(d.slice(0, i).trim(), d.slice(i + 1).trim());
+        });
+      });
+    });
+  }
+  function setShow(el, on, disp) { el.style.display = on ? (disp || "block") : "none"; }
 
   var $ = function (id) { return document.getElementById(id); };
+  var user = null, filter = "all", KEY = "piconnectbd_posts_v1";
+
+  document.documentElement.style.background = "#14121c";
+  applyStyles(document);
+  setShow($("appBox"), false);
+  setShow($("postForm"), false);
 
   function show(text, kind) {
     var s = $("status");
@@ -121,9 +118,10 @@ h1{font-size:22px;color:var(--pri)}
     d.className = "msg " + (kind || "");
     d.textContent = text;
     s.appendChild(d);
+    applyStyles(s);
   }
 
-  // ---- Pi SDK চালু ----
+  // ---------- Pi SDK ----------
   var sdkReady = false;
   try {
     if (typeof Pi === "undefined") throw new Error("Pi SDK লোড হয়নি");
@@ -133,14 +131,10 @@ h1{font-size:22px;color:var(--pri)}
     show("এই অ্যাপ Pi Browser-এ খুলুন। সাধারণ ব্রাউজারে লগইন কাজ করবে না।", "err");
   }
 
-  // ---- লগইন ----
-  function onIncompletePaymentFound(payment) { /* পেমেন্ট যোগ করলে এখানে হ্যান্ডেল করুন */ }
+  function onIncompletePaymentFound(payment) {}
 
   async function login() {
-    if (!sdkReady) {
-      show("Pi SDK পাওয়া যায়নি। Pi Browser-এ লিংকটি খুলুন।", "err");
-      return;
-    }
+    if (!sdkReady) { show("Pi SDK পাওয়া যায়নি। Pi Browser-এ খুলুন।", "err"); return; }
     var btn = $("loginBtn");
     btn.disabled = true;
     show("লগইন হচ্ছে...");
@@ -148,8 +142,8 @@ h1{font-size:22px;color:var(--pri)}
       var auth = await Pi.authenticate(["username"], onIncompletePaymentFound);
       user = auth.user;
       $("uname").textContent = "@" + user.username;
-      $("loginBox").classList.add("hidden");
-      $("appBox").classList.remove("hidden");
+      setShow($("loginBox"), false);
+      setShow($("appBox"), true);
       show("লগইন সফল হয়েছে।", "ok");
       setTimeout(function () { show(""); }, 2500);
       render();
@@ -161,18 +155,15 @@ h1{font-size:22px;color:var(--pri)}
     }
   }
   $("loginBtn").addEventListener("click", login);
-  window.login = login; // পুরনো onclick="login()" থাকলেও কাজ করবে
+  window.login = login;
 
-  // ---- পোস্ট সংরক্ষণ (এই ডিভাইসে) ----
-  function load() {
-    try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; }
-  }
-  function save(arr) {
-    try { localStorage.setItem(KEY, JSON.stringify(arr)); } catch (e) { show("সংরক্ষণ করা যায়নি", "err"); }
-  }
+  // ---------- পোস্ট ----------
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } }
+  function save(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) { show("সংরক্ষণ করা যায়নি", "err"); } }
 
   $("newBtn").addEventListener("click", function () {
-    $("postForm").classList.toggle("hidden");
+    var f = $("postForm");
+    setShow(f, f.style.display === "none", "grid");
   });
 
   $("postForm").addEventListener("submit", function (ev) {
@@ -185,13 +176,12 @@ h1{font-size:22px;color:var(--pri)}
       desc: $("desc").value.trim(),
       price: parseFloat($("price").value) || 0,
       area: $("area").value.trim(),
-      owner: user.username,
-      at: new Date().toISOString()
+      owner: user.username
     });
     save(posts);
     ev.target.reset();
     $("price").value = "0.5";
-    $("postForm").classList.add("hidden");
+    setShow($("postForm"), false);
     show("পোস্ট হয়েছে।", "ok");
     setTimeout(function () { show(""); }, 2000);
     render();
@@ -210,28 +200,20 @@ h1{font-size:22px;color:var(--pri)}
       e.className = "empty";
       e.textContent = "এখনো কোনো পোস্ট নেই। প্রথম পোস্টটি আপনি করুন।";
       list.appendChild(e);
+      applyStyles(list);
       return;
     }
     posts.forEach(function (p) {
       var c = document.createElement("div");
       c.className = "post";
-
-      var tag = document.createElement("span");
-      tag.className = "tag"; tag.textContent = p.type;
-      var h = document.createElement("h3");
-      h.textContent = p.title;
-      var d = document.createElement("div");
-      d.textContent = p.desc;
-      var m = document.createElement("div");
-      m.className = "meta";
-      var left = document.createElement("span");
-      left.textContent = p.area + " · @" + p.owner;
-      var pr = document.createElement("span");
-      pr.className = "price"; pr.textContent = p.price + " Pi";
-      m.appendChild(left); m.appendChild(pr);
-
+      var tag = document.createElement("span"); tag.className = "tag"; tag.textContent = p.type;
+      var h = document.createElement("h3"); h.textContent = p.title;
+      var d = document.createElement("div"); d.textContent = p.desc;
+      var m = document.createElement("div"); m.className = "meta";
+      var l = document.createElement("span"); l.textContent = p.area + " · @" + p.owner;
+      var pr = document.createElement("span"); pr.className = "price"; pr.textContent = p.price + " Pi";
+      m.appendChild(l); m.appendChild(pr);
       c.appendChild(tag); c.appendChild(h); c.appendChild(d); c.appendChild(m);
-
       if (user && p.owner === user.username) {
         var del = document.createElement("button");
         del.className = "ghost"; del.type = "button"; del.textContent = "মুছুন";
@@ -244,6 +226,7 @@ h1{font-size:22px;color:var(--pri)}
       }
       list.appendChild(c);
     });
+    applyStyles(list);
   }
 })();
 </script>
