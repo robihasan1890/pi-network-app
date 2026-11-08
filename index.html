@@ -47,7 +47,7 @@ label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
 <!-- LOGIN -->
 <div id="loginView" class="card">
   <p style="margin-bottom:10px">পোস্ট করতে ও যোগাযোগ করতে Pi দিয়ে লগইন করুন।</p>
-  <button class="btn" id="loginBtn">Login with Pi</button>
+  <button class="btn" id="loginBtn" onclick="login()">Login with Pi</button>
   <div id="loginMsg" class="sub" style="margin-top:8px"></div>
 </div>
 
@@ -82,6 +82,12 @@ label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
 </div>
 
 <script>
+window.onerror = function (msg, src, line) {
+  var el = document.getElementById("loginMsg");
+  if (el) el.innerHTML = '<span style="color:#ff8a8a">ত্রুটি: ' + msg + ' (লাইন ' + line + ')</span>';
+};
+</script>
+<script>
 /* ====== সেটিংস ======
    Firebase দিলে সবার পোস্ট শেয়ার হবে।
    না দিলে ডেমো মোডে শুধু এই ডিভাইসে সেভ হবে। */
@@ -109,10 +115,9 @@ async function login() {
     user = auth.user.username;
     showApp();
   } catch (e) {
-    $("loginMsg").innerHTML = '<span class="err">লগইন হয়নি। Pi Browser থেকে খুলুন।</span>';
+    $("loginMsg").innerHTML = '<span class="err">লগইন হয়নি: ' + esc((e && e.message) || e) + '</span>';
   }
 }
-$("loginBtn").onclick = login;
 $("logout").onclick = () => { user = null; location.reload(); };
 
 function showApp() {
@@ -137,7 +142,7 @@ async function save(item) {
   if (useFirebase) { await db.collection("listings").add(item); }
   else { items.unshift({ id: String(item.ts), ...item }); localStorage.setItem("pcbd_items", JSON.stringify(items)); }
 }
-async function remove(id) {
+async function deletePost(id) {
   if (!confirm("পোস্টটি মুছবেন?")) return;
   if (useFirebase) await db.collection("listings").doc(id).delete();
   else { items = items.filter(i => i.id !== id); localStorage.setItem("pcbd_items", JSON.stringify(items)); }
@@ -159,32 +164,4 @@ function render() {
       <div class="title">${esc(i.title)}</div>
       <div class="desc">${esc(i.desc)}</div>
       <div class="meta">
-        <span class="price">${esc(i.price)} π</span>
-        <span>@${esc(i.seller)}</span>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <button class="btn2" onclick="contact('${esc(i.seller)}')">যোগাযোগ</button>
-        ${i.seller === user ? <button class="ghost" onclick="remove('${esc(i.id)}')">মুছুন</button> : ""}
-      </div>
-    </div>`).join("");
-}
-function contact(u) {
-  const link = "https://pi.chat/@" + u;
-  try { window.open(link, "_blank"); } catch (e) { alert("Pi username: @" + u); }
-}
-$("toggleForm").onclick = () => $("postForm").classList.toggle("hide");
-$("postForm").onsubmit = async e => {
-  e.preventDefault();
-  const item = {
-    type: $("type").value, title: $("title").value.trim(), desc: $("desc").value.trim(),
-    price: parseFloat($("price").value) || 0, loc: $("loc").value.trim(), seller: user, ts: Date.now()
-  };
-  try {
-    await save(item);
-    $("postForm").reset(); $("postForm").classList.add("hide");
-    load();
-  } catch (err) { $("formMsg").innerHTML = '<span class="err">পোস্ট হয়নি, আবার চেষ্টা করুন।</span>'; }
-};
-</script>
-</body>
-</html>
+        <sp
