@@ -1,32 +1,4 @@
-[9:54 am, 09/11/2026] MD RABIUL ISLAM: <!DOCTYPE html>
-<html lang="bn">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PiConnect BD</title>
-<script src="https://sdk.minepi.com/pi-sdk.js"></script>
-</head>
-<body>
-<div class="wrap">
-  <h1>PiConnect BD</h1>
-  <p class="sub">Pi দিয়ে কেনা-বেচা ও সেবা বিনিময়</p>
-  <div id="status"></div>
-
-  <section id="loginBox">
-    <p>পোস্ট করতে ও যোগাযোগ করতে Pi দিয়ে লগইন করুন।</p>
-    <button id="loginBtn" type="button">Pi দিয়ে লগইন করুন</button>
-  </section>
-
-  <section id="appBox">
-    <div class="bar">
-      <span>স্বাগতম, <strong id="uname"></strong></span>
-      <button class="ghost" type="button" id="newBtn">+ নতুন পোস্ট</button>
-    </div>
-
-    <form id="postForm">
-      <label>ধরন
-        <sele…
-[10:53 am, 09/11/2026] MD RABIUL ISLAM: <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="bn">
 <head>
 <meta charset="UTF-8">
@@ -71,6 +43,9 @@
       <label>এলাকা
         <input id="area" maxlength="40" required placeholder="যেমন: রংপুর">
       </label>
+      <label>WhatsApp নম্বর (ঐচ্ছিক)
+        <input id="contact" type="tel" inputmode="numeric" maxlength="11" placeholder="01XXXXXXXXX">
+      </label>
       <button type="submit" id="submitBtn">পোস্ট করুন</button>
     </form>
 
@@ -90,6 +65,9 @@
 
   var SUPABASE_URL = "https://llcxjoaplqnfmhwbcclb.supabase.co";
   var SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxsY3hqb2FwbHFuZm1od2JjY2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQxMjkwOTEsImV4cCI6MjEwOTcwNTA5MX0.ZCmPN0mIuozeYmY7coba1zsV50Jv7WOL94-PivM7Yho";
+
+  // নিষিদ্ধ শব্দ (ডাটাবেসেও একই নিয়ম আছে)
+  var BANNED = /kyc/i;
 
   var RULES = {
     "*": "box-sizing:border-box",
@@ -114,6 +92,7 @@
     ".tag": "display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:#2c2740;color:#f5a524;margin-bottom:6px",
     ".meta": "font-size:13px;color:#a49fba;margin-top:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px",
     ".price": "color:#f5a524;font-weight:700",
+    ".wa": "display:inline-block;margin-top:10px;padding:9px 14px;border-radius:10px;background:#25d366;color:#06240f;font-weight:700;text-decoration:none;font-size:14px",
     ".empty": "text-align:center;color:#a49fba;padding:28px 0"
   };
 
@@ -154,10 +133,7 @@
   // ---------- Supabase ----------
   function sb(path, opts) {
     opts = opts || {};
-    var h = {
-      "apikey": SUPABASE_KEY,
-      "Content-Type": "application/json"
-    };
+    var h = { "apikey": SUPABASE_KEY, "Content-Type": "application/json" };
     if (SUPABASE_KEY.indexOf("eyJ") === 0) {
       h["Authorization"] = "Bearer " + SUPABASE_KEY;
     }
@@ -229,15 +205,30 @@
 
   $("postForm").addEventListener("submit", function (ev) {
     ev.preventDefault();
+
+    var title = $("title").value.trim();
+    var descr = $("desc").value.trim();
+    var contact = $("contact").value.trim();
+
+    if (BANNED.test(title) || BANNED.test(descr)) {
+      show("এই ধরনের সেবা বা পণ্যের পোস্ট এই অ্যাপে অনুমোদিত নয়।", "err");
+      return;
+    }
+    if (contact && !/^01[0-9]{9}$/.test(contact)) {
+      show("WhatsApp নম্বর ১১ ডিজিটের হতে হবে, যেমন 01XXXXXXXXX।", "err");
+      return;
+    }
+
     var sbtn = $("submitBtn");
     sbtn.disabled = true;
     var body = {
       type: $("type").value,
-      title: $("title").value.trim(),
-      descr: $("desc").value.trim(),
+      title: title,
+      descr: descr,
       price: parseFloat($("price").value) || 0,
       area: $("area").value.trim(),
-      owner: user.username
+      owner: user.username,
+      contact: contact || null
     };
     sb("posts", { method: "POST", body: JSON.stringify(body), headers: { "Prefer": "return=minimal" } })
       .then(function () {
@@ -277,6 +268,16 @@
       var pr = document.createElement("span"); pr.className = "price"; pr.textContent = p.price + " Pi";
       m.appendChild(l); m.appendChild(pr);
       c.appendChild(tag); c.appendChild(h); c.appendChild(d); c.appendChild(m);
+
+      if (p.contact && /^01[0-9]{9}$/.test(p.contact)) {
+        var a = document.createElement("a");
+        a.className = "wa";
+        a.href = "https://wa.me/880" + p.contact.slice(1);
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = "WhatsApp-এ যোগাযোগ করুন";
+        c.appendChild(a);
+      }
       list.appendChild(c);
     });
     applyStyles(list);
