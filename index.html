@@ -43,7 +43,7 @@
       <label>এলাকা
         <input id="area" maxlength="40" required placeholder="যেমন: রংপুর">
       </label>
-      <button type="submit">পোস্ট করুন</button>
+      <button type="submit" id="submitBtn">পোস্ট করুন</button>
     </form>
 
     <div class="tabs">
@@ -60,7 +60,9 @@
 (function () {
   "use strict";
 
-  // ---------- স্টাইল (JS দিয়ে, CSS ব্লক ছাড়া) ----------
+  var SUPABASE_URL = "https://llcxjoaplqnfmhwbcclb.supabase.co";
+  var SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxsY3hqb2FwbHFuZm1od2JjY2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQxMjkwOTEsImV4cCI6MjEwOTcwNTA5MX0.ZCmPN0mIuozeYmY7coba1zsV50Jv7WOL94-PivM7Yho";
+
   var RULES = {
     "*": "box-sizing:border-box",
     "body": "margin:0;font-family:'Noto Sans Bengali',system-ui,sans-serif;background:#14121c;color:#f1eefb;line-height:1.5",
@@ -91,7 +93,7 @@
     Object.keys(RULES).forEach(function (sel) {
       var decls = RULES[sel].split(";");
       var nodes = [];
-      try { nodes = (root === document ? document : root).querySelectorAll(sel); } catch (e) {}
+      try { nodes = root.querySelectorAll(sel); } catch (e) {}
       nodes.forEach(function (el) {
         decls.forEach(function (d) {
           var i = d.indexOf(":");
@@ -103,7 +105,7 @@
   function setShow(el, on, disp) { el.style.display = on ? (disp || "block") : "none"; }
 
   var $ = function (id) { return document.getElementById(id); };
-  var user = null, filter = "all", KEY = "piconnectbd_posts_v1";
+  var user = null, filter = "all";
 
   document.documentElement.style.background = "#14121c";
   applyStyles(document);
@@ -119,6 +121,23 @@
     d.textContent = text;
     s.appendChild(d);
     applyStyles(s);
+  }
+
+  // ---------- Supabase ----------
+  function sb(path, opts) {
+    opts = opts || {};
+    var h = {
+      "apikey": SUPABASE_KEY,
+      "Content-Type": "application/json"
+    };
+    if (SUPABASE_KEY.indexOf("eyJ") === 0) {
+      h["Authorization"] = "Bearer " + SUPABASE_KEY;
+    }
+    opts.headers = Object.assign(h, opts.headers || {});
+    return fetch(SUPABASE_URL + "/rest/v1/" + path, opts).then(function (r) {
+      if (!r.ok) return r.text().then(function (t) { throw new Error("সার্ভার এরর " + r.status + ": " + t); });
+      return r.status === 204 ? null : r.json().catch(function () { return null; });
+    });
   }
 
   // ---------- Pi SDK ----------
@@ -144,9 +163,8 @@
       $("uname").textContent = "@" + user.username;
       setShow($("loginBox"), false);
       setShow($("appBox"), true);
-      show("লগইন সফল হয়েছে।", "ok");
-      setTimeout(function () { show(""); }, 2500);
-      render();
+      show("");
+      loadPosts();
     } catch (err) {
       console.error(err);
       show("লগইন ব্যর্থ: " + (err && err.message ? err.message : err), "err");
@@ -158,8 +176,23 @@
   window.login = login;
 
   // ---------- পোস্ট ----------
-  function load() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } }
-  function save(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) { show("সংরক্ষণ করা যায়নি", "err"); } }
+  var cache = [];
+
+  function loadPosts() {
+    $("list").innerHTML = "";
+    var l = document.createElement("div");
+    l.className = "empty"; l.textContent = "লোড হচ্ছে...";
+    $("list").appendChild(l); applyStyles($("list"));
+    var q = "posts?select=*&order=created_at.desc&limit=100";
+    if (filter !== "all") q += "&type=eq." + encodeURIComponent(filter);
+    sb(q).then(function (rows) {
+      cache = rows || [];
+      render();
+    }).catch(function (e) {
+      show("পোস্ট লোড করা যায়নি। " + e.message, "err");
+      $("list").innerHTML = "";
+    });
+  }
 
   $("newBtn").addEventListener("click", function () {
     var f = $("postForm");
@@ -168,34 +201,37 @@
 
   $("postForm").addEventListener("submit", function (ev) {
     ev.preventDefault();
-    var posts = load();
-    posts.unshift({
-      id: Date.now(),
+    var sbtn = $("submitBtn");
+    sbtn.disabled = true;
+    var body = {
       type: $("type").value,
       title: $("title").value.trim(),
-      desc: $("desc").value.trim(),
+      descr: $("desc").value.trim(),
       price: parseFloat($("price").value) || 0,
       area: $("area").value.trim(),
       owner: user.username
-    });
-    save(posts);
-    ev.target.reset();
-    $("price").value = "0.5";
-    setShow($("postForm"), false);
-    show("পোস্ট হয়েছে।", "ok");
-    setTimeout(function () { show(""); }, 2000);
-    render();
+    };
+    sb("posts", { method: "POST", body: JSON.stringify(body), headers: { "Prefer": "return=minimal" } })
+      .then(function () {
+        ev.target.reset();
+        $("price").value = "0.5";
+        setShow($("postForm"), false);
+        show("পোস্ট হয়েছে।", "ok");
+        setTimeout(function () { show(""); }, 2000);
+        loadPosts();
+      })
+      .catch(function (e) { show("পোস্ট করা যায়নি। " + e.message, "err"); })
+      .then(function () { sbtn.disabled = false; });
   });
 
   document.querySelectorAll(".tabs button").forEach(function (b) {
-    b.addEventListener("click", function () { filter = b.getAttribute("data-f"); render(); });
+    b.addEventListener("click", function () { filter = b.getAttribute("data-f"); loadPosts(); });
   });
 
   function render() {
     var list = $("list");
     list.innerHTML = "";
-    var posts = load().filter(function (p) { return filter === "all" || p.type === filter; });
-    if (!posts.length) {
+    if (!cache.length) {
       var e = document.createElement("div");
       e.className = "empty";
       e.textContent = "এখনো কোনো পোস্ট নেই। প্রথম পোস্টটি আপনি করুন।";
@@ -203,27 +239,16 @@
       applyStyles(list);
       return;
     }
-    posts.forEach(function (p) {
-      var c = document.createElement("div");
-      c.className = "post";
+    cache.forEach(function (p) {
+      var c = document.createElement("div"); c.className = "post";
       var tag = document.createElement("span"); tag.className = "tag"; tag.textContent = p.type;
       var h = document.createElement("h3"); h.textContent = p.title;
-      var d = document.createElement("div"); d.textContent = p.desc;
+      var d = document.createElement("div"); d.textContent = p.descr || "";
       var m = document.createElement("div"); m.className = "meta";
       var l = document.createElement("span"); l.textContent = p.area + " · @" + p.owner;
       var pr = document.createElement("span"); pr.className = "price"; pr.textContent = p.price + " Pi";
       m.appendChild(l); m.appendChild(pr);
       c.appendChild(tag); c.appendChild(h); c.appendChild(d); c.appendChild(m);
-      if (user && p.owner === user.username) {
-        var del = document.createElement("button");
-        del.className = "ghost"; del.type = "button"; del.textContent = "মুছুন";
-        del.style.marginTop = "10px";
-        del.addEventListener("click", function () {
-          save(load().filter(function (x) { return x.id !== p.id; }));
-          render();
-        });
-        c.appendChild(del);
-      }
       list.appendChild(c);
     });
     applyStyles(list);
