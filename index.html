@@ -204,6 +204,7 @@
     setShow(f, f.style.display === "none", "grid");
   });
 
+  // ---------- নতুন পোস্ট (টোকেন যাচাইসহ) ----------
   $("postForm").addEventListener("submit", function (ev) {
     ev.preventDefault();
 
@@ -220,28 +221,37 @@
       return;
     }
 
+    var form = ev.target;
     var sbtn = $("submitBtn");
     sbtn.disabled = true;
-    var body = {
-      type: $("type").value,
-      title: title,
-      descr: descr,
-      price: parseFloat($("price").value) || 0,
-      area: $("area").value.trim(),
-      owner: user.username,
-      contact: contact || null
-    };
-    sb("posts", { method: "POST", body: JSON.stringify(body), headers: { "Prefer": "return=minimal" } })
-      .then(function () {
-        ev.target.reset();
+
+    sb("rpc/add_post", {
+      method: "POST",
+      body: JSON.stringify({
+        p_token: token,
+        p_type: $("type").value,
+        p_title: title,
+        p_descr: descr,
+        p_price: parseFloat($("price").value) || 0,
+        p_area: $("area").value.trim(),
+        p_contact: contact || null
+      })
+    }).then(function (res) {
+      if (res === "ok") {
+        form.reset();
         $("price").value = "0.5";
         setShow($("postForm"), false);
         show("পোস্ট হয়েছে।", "ok");
         setTimeout(function () { show(""); }, 2000);
         loadPosts();
-      })
-      .catch(function (e) { show("পোস্ট করা যায়নি। " + e.message, "err"); })
-      .then(function () { sbtn.disabled = false; });
+      } else if (res === "invalid_token") {
+        show("লগইন মেয়াদ শেষ। অ্যাপ আবার খুলে লগইন করুন।", "err");
+      } else {
+        show("পোস্ট গ্রহণ করা হয়নি। তথ্য আবার দেখুন।", "err");
+      }
+    }).catch(function (e) {
+      show("পোস্ট করা যায়নি। " + e.message, "err");
+    }).then(function () { sbtn.disabled = false; });
   });
 
   document.querySelectorAll(".tabs button").forEach(function (b) {
