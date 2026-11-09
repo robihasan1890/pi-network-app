@@ -66,7 +66,6 @@
   var SUPABASE_URL = "https://llcxjoaplqnfmhwbcclb.supabase.co";
   var SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxsY3hqb2FwbHFuZm1od2JjY2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQxMjkwOTEsImV4cCI6MjEwOTcwNTA5MX0.ZCmPN0mIuozeYmY7coba1zsV50Jv7WOL94-PivM7Yho";
 
-  // নিষিদ্ধ শব্দ (ডাটাবেসেও একই নিয়ম আছে)
   var BANNED = /kyc/i;
 
   var RULES = {
@@ -77,6 +76,7 @@
     ".sub": "color:#a49fba;margin:4px 0 16px",
     "button": "font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 16px;background:#f5a524;color:#1a1200;font-weight:600",
     "button.ghost": "background:transparent;color:#f1eefb;border:1px solid #342f47",
+    "button.del": "background:transparent;color:#f87171;border:1px solid #5a2b32;padding:8px 14px;font-size:14px",
     ".bar": "display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px",
     ".msg": "padding:10px 12px;border-radius:10px;margin:8px 0;font-size:14px",
     ".msg.err": "background:#3a1d22;color:#f87171",
@@ -92,7 +92,7 @@
     ".tag": "display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:#2c2740;color:#f5a524;margin-bottom:6px",
     ".meta": "font-size:13px;color:#a49fba;margin-top:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px",
     ".price": "color:#f5a524;font-weight:700",
-    ".wa": "display:inline-block;margin-top:10px;padding:9px 14px;border-radius:10px;background:#25d366;color:#06240f;font-weight:700;text-decoration:none;font-size:14px",
+    ".wa": "display:inline-block;margin:10px 8px 0 0;padding:9px 14px;border-radius:10px;background:#25d366;color:#06240f;font-weight:700;text-decoration:none;font-size:14px",
     ".empty": "text-align:center;color:#a49fba;padding:28px 0"
   };
 
@@ -112,7 +112,7 @@
   function setShow(el, on, disp) { el.style.display = on ? (disp || "block") : "none"; }
 
   var $ = function (id) { return document.getElementById(id); };
-  var user = null, filter = "all";
+  var user = null, token = null, filter = "all";
 
   document.documentElement.style.background = "#14121c";
   applyStyles(document);
@@ -164,6 +164,7 @@
     try {
       var auth = await Pi.authenticate(["username"], onIncompletePaymentFound);
       user = auth.user;
+      token = auth.accessToken;
       $("uname").textContent = "@" + user.username;
       setShow($("loginBox"), false);
       setShow($("appBox"), true);
@@ -247,6 +248,31 @@
     b.addEventListener("click", function () { filter = b.getAttribute("data-f"); loadPosts(); });
   });
 
+  // ---------- নিজের পোস্ট মোছা ----------
+  function deletePost(id, btn) {
+    btn.disabled = true;
+    btn.textContent = "মোছা হচ্ছে...";
+    sb("rpc/delete_my_post", {
+      method: "POST",
+      body: JSON.stringify({ p_id: id, p_token: token })
+    }).then(function (res) {
+      if (res === "ok") {
+        show("পোস্ট মুছে ফেলা হয়েছে।", "ok");
+        setTimeout(function () { show(""); }, 2000);
+        loadPosts();
+      } else if (res === "invalid_token") {
+        show("লগইন মেয়াদ শেষ। অ্যাপ আবার খুলে লগইন করুন।", "err");
+        btn.disabled = false; btn.textContent = "মুছুন";
+      } else {
+        show("পোস্টটি মোছা যায়নি (এটি আপনার নয় বা আগেই মুছে গেছে)।", "err");
+        btn.disabled = false; btn.textContent = "মুছুন";
+      }
+    }).catch(function (e) {
+      show("মোছা যায়নি। " + e.message, "err");
+      btn.disabled = false; btn.textContent = "মুছুন";
+    });
+  }
+
   function render() {
     var list = $("list");
     list.innerHTML = "";
@@ -277,6 +303,27 @@
         a.rel = "noopener noreferrer";
         a.textContent = "WhatsApp-এ যোগাযোগ করুন";
         c.appendChild(a);
+      }
+
+      if (user && p.owner === user.username) {
+        var del = document.createElement("button");
+        del.type = "button";
+        del.className = "del";
+        del.textContent = "মুছুন";
+        del.style.marginTop = "10px";
+        var armed = false;
+        del.addEventListener("click", function () {
+          if (!armed) {
+            armed = true;
+            del.textContent = "নিশ্চিত? আবার চাপুন";
+            setTimeout(function () {
+              if (!del.disabled) { armed = false; del.textContent = "মুছুন"; }
+            }, 4000);
+            return;
+          }
+          deletePost(p.id, del);
+        });
+        c.appendChild(del);
       }
       list.appendChild(c);
     });
