@@ -43,7 +43,7 @@
       <label>এলাকা
         <input id="area" maxlength="40" required placeholder="যেমন: রংপুর">
       </label>
-      <label>WhatsApp নম্বর (ঐচ্ছিক)
+      <label>WhatsApp নম্বর (ঐচ্ছিক, সবাই দেখতে পাবে)
         <input id="contact" type="tel" inputmode="numeric" maxlength="11" placeholder="01XXXXXXXXX">
       </label>
       <button type="submit" id="submitBtn">পোস্ট করুন</button>
@@ -55,6 +55,12 @@
       <button type="button" class="ghost" data-f="কেনা">কেনা</button>
       <button type="button" class="ghost" data-f="সেবা">সেবা</button>
     </div>
+
+    <div id="filters">
+      <input id="q" type="search" placeholder="খুঁজুন (যেমন: মোবাইল)">
+      <select id="areaSel"><option value="">সব এলাকা</option></select>
+    </div>
+
     <div id="list"></div>
   </section>
 </div>
@@ -87,6 +93,7 @@
     "textarea": "min-height:80px;resize:vertical",
     ".tabs": "display:flex;gap:8px;margin-bottom:12px",
     ".tabs button": "flex:1",
+    "#filters": "display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:12px",
     ".post": "background:#1f1c2b;border:1px solid #342f47;border-radius:14px;padding:14px;margin-bottom:10px",
     ".post h3": "margin:0 0 4px;font-size:17px",
     ".tag": "display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:#2c2740;color:#f5a524;margin-bottom:6px",
@@ -112,7 +119,7 @@
   function setShow(el, on, disp) { el.style.display = on ? (disp || "block") : "none"; }
 
   var $ = function (id) { return document.getElementById(id); };
-  var user = null, token = null, filter = "all";
+  var user = null, token = null, filter = "all", qText = "";
 
   document.documentElement.style.background = "#14121c";
   applyStyles(document);
@@ -192,12 +199,40 @@
     if (filter !== "all") q += "&type=eq." + encodeURIComponent(filter);
     sb(q).then(function (rows) {
       cache = rows || [];
+      populateAreas();
       render();
     }).catch(function (e) {
       show("পোস্ট লোড করা যায়নি। " + e.message, "err");
       $("list").innerHTML = "";
     });
   }
+
+  // ---------- সার্চ ও এলাকা ফিল্টার ----------
+  function populateAreas() {
+    var sel = $("areaSel");
+    var cur = sel.value;
+    var seen = {};
+    cache.forEach(function (p) {
+      var a = (p.area || "").trim();
+      if (a) seen[a] = true;
+    });
+    sel.innerHTML = "";
+    var all = document.createElement("option");
+    all.value = ""; all.textContent = "সব এলাকা";
+    sel.appendChild(all);
+    Object.keys(seen).sort().forEach(function (a) {
+      var o = document.createElement("option");
+      o.value = a; o.textContent = a;
+      sel.appendChild(o);
+    });
+    sel.value = seen[cur] ? cur : "";
+  }
+
+  $("q").addEventListener("input", function () {
+    qText = this.value.trim().toLowerCase();
+    render();
+  });
+  $("areaSel").addEventListener("change", render);
 
   $("newBtn").addEventListener("click", function () {
     var f = $("postForm");
@@ -247,7 +282,7 @@
       } else if (res === "invalid_token") {
         show("লগইন মেয়াদ শেষ। অ্যাপ আবার খুলে লগইন করুন।", "err");
       } else {
-        show("পোস্ট গ্রহণ করা হয়নি। তথ্য আবার দেখুন।", "err");
+        show("পোস্ট গ্রহণ করা হয়নি। তথ্য আবার দেখুন। অথবা ২৪ ঘণ্টায় ১০টি পোস্টের সীমা শেষ হয়ে থাকতে পারে।", "err");
       }
     }).catch(function (e) {
       show("পোস্ট করা যায়নি। " + e.message, "err");
@@ -294,7 +329,27 @@
       applyStyles(list);
       return;
     }
-    cache.forEach(function (p) {
+
+    var area = $("areaSel").value;
+    var rows = cache.filter(function (p) {
+      if (area && (p.area || "").trim() !== area) return false;
+      if (qText) {
+        var hay = ((p.title || "") + " " + (p.descr || "") + " " + (p.area || "") + " " + (p.owner || "")).toLowerCase();
+        if (hay.indexOf(qText) === -1) return false;
+      }
+      return true;
+    });
+
+    if (!rows.length) {
+      var n = document.createElement("div");
+      n.className = "empty";
+      n.textContent = "কোনো পোস্ট মেলেনি। অন্য শব্দ বা এলাকা দিয়ে দেখুন।";
+      list.appendChild(n);
+      applyStyles(list);
+      return;
+    }
+
+    rows.forEach(function (p) {
       var c = document.createElement("div"); c.className = "post";
       var tag = document.createElement("span"); tag.className = "tag"; tag.textContent = p.type;
       var h = document.createElement("h3"); h.textContent = p.title;
