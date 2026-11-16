@@ -141,7 +141,7 @@
   function sb(path, opts) {
     opts = opts || {};
     var h = { "apikey": SUPABASE_KEY, "Content-Type": "application/json" };
-    if (SUPABASE_KEY.indexOf("eyJ") === 0) {
+    if (SUPABASE_KEY.indexOf("sb_publishable_1vzF-6lJw1x2dhLjiG164A_9Cf0hDpT") === 0) {
       h["Authorization"] = "Bearer " + SUPABASE_KEY;
     }
     opts.headers = Object.assign(h, opts.headers || {});
